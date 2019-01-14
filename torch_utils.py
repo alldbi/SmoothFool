@@ -316,7 +316,7 @@ def get_label(x):
 def nnz_pixels(arr):
     return np.count_nonzero(np.sum(np.absolute(arr), axis=0))
 
-def smooth_clip(x, v, smoothing, max_iters=100):
+def smooth_clip(x, v, smoothing, max_iters=1000):
 
 
     n = 1.
@@ -496,7 +496,7 @@ def smooth_clip(x, v, smoothing, max_iters=100):
 
     return v_i
 
-def smooth_clip_v2(x, v, smoothing, max_iters=100):
+def smooth_clip_v2(x, v, smoothing, max_iters=4000):
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
     epsilon = 1e-2

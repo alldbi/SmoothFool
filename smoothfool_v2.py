@@ -120,9 +120,9 @@ def smoothfool_v2(net, im, n_clusters=4, max_iters=50000, plot_cluters=False, de
 
     plt.show()
 
-    scipy.misc.imsave('orig_lion.png', im_orig)
-    scipy.misc.imsave('adv_lion_vgg19.png', im_np)
-    scipy.misc.imsave('p_lion_vgg19.png', diff)
+    scipy.misc.imsave('orig.png', im_orig)
+    scipy.misc.imsave('adv.png', im_np)
+    scipy.misc.imsave('p.png', diff)
 
     exit()
 

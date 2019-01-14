@@ -15,20 +15,20 @@ np.random.seed(274)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # net = models.densenet121(pretrained=True)
-# net = models.resnet101(pretrained=True)
+net = models.resnet101(pretrained=True)
 # net = models.densenet161(pretrained=True)
 # net = models.vgg19_bn(pretrained=True)
 # net = models.vgg16_bn(pretrained=True)
 # net = models.vgg16(pretrained=True)
 # net = models.resnet152(pretrained=True)
-net = models.inception_v3(pretrained=True)
+# net = models.inception_v3(pretrained=True)
 
 
 # Switch to evaluation mode
 net.eval()
 
 # read the input image
-im_orig = Image.open('/home/lab320/Downloads/499510904_25d51a5a4f.jpg')
+im_orig = Image.open('/home/lab320/Downloads/sign.png')
 # im_orig = Image.open('/media/lab320/0274E2F866ED37FC/testextract/1/n00015388_60736.JPEG')#lion
 
 
