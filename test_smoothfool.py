@@ -1,7 +1,7 @@
 import torchvision.transforms as transforms
 import torchvision.models as models
 from PIL import Image
-from smoothfool_v2 import smoothfool_v2
+from smoothfool import smoothfool_v2
 import os
 from torch_utils import *
 
@@ -45,11 +45,6 @@ im = transforms.Compose([
     transforms.CenterCrop(224),
     transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)])(im_orig)
 
-
-
-
-# normalize the input image
-im_01 = (im-torch.min(im))/(torch.max(im)-torch.min(im))
 
 x_adv, pred_lbl, adv_lbl = smoothfool_v2(net, im, n_clusters=8, plot_cluters=False, device=device)
 

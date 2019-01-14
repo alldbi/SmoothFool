@@ -27,7 +27,7 @@ def pred_cls(lbl):
    return labels[np.int(lbl)].split(',')[0]
 
 
-def smoothfool_v2(net, im, n_clusters=4, max_iters=50000, plot_cluters=False, device='cuda'):
+def smoothfool(net, im, n_clusters=4, max_iters=50000, plot_cluters=False, device='cuda'):
     def clip_value(x):
         xx = copy.deepcopy(x)
         x_0 = xx[0:1, :, :]
