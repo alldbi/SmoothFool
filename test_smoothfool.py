@@ -28,7 +28,7 @@ net = models.resnet101(pretrained=True)
 net.eval()
 
 # read the input image
-im_orig = Image.open('/home/lab320/Downloads/sign.png')
+im_orig = Image.open('/home/lab320/Downloads/499510904_25d51a5a4f.jpg')
 # im_orig = Image.open('/media/lab320/0274E2F866ED37FC/testextract/1/n00015388_60736.JPEG')#lion
 
 
