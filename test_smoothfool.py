@@ -1,22 +1,9 @@
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
 import torchvision.transforms as transforms
-import numpy as np
-import matplotlib.pyplot as plt
-import torch
-import torch.optim as optim
-import torch.utils.data as data_utils
-from torch.autograd import Variable
-import math
 import torchvision.models as models
 from PIL import Image
-from smoothfool import smoothfool
 from smoothfool_v2 import smoothfool_v2
 import os
-from np_utils import *
 from torch_utils import *
-import copy
 
 
 # set random seed
