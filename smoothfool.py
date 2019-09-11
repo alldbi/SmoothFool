@@ -321,8 +321,8 @@ dp_lambda = 1.5
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch implementation of SmoothFool')
-    parser.add_argument('--sigma', default=20, type=float, help='smoothing factor')
-    parser.add_argument('--type', default='uniform', type=str, help='type of smoothing')
+    parser.add_argument('--sigma', default=100, type=float, help='smoothing factor')
+    parser.add_argument('--type', default='gaussian', type=str, help='type of smoothing')
     parser.add_argument('--smoothclip', default=True, type=bool,
                         help='clip adv samples using smoothclip or conventional clip, (not valid for uniform smoothness)')
     parser.add_argument('--net', default='resnet101', type=str,
@@ -370,6 +370,13 @@ if __name__ == '__main__':
 
     # visualize the results
 
+    from scipy.misc import imsave
+
+    imsave('adv' + str(args.sigma) + '.png', tensor2img(x_adv))
+    imsave('pert' + str(args.sigma) + '.png', tensor2img(x_adv-im))
+    imsave('orig'+ '.png', tensor2img(im))
+
+
     plt.subplot(1, 3, 1)
     plt.title('Input sample')
     plt.imshow(tensor2img(im))
@@ -380,3 +387,5 @@ if __name__ == '__main__':
     plt.title('Adv perturbation')
     plt.imshow(tensor2img(x_adv - im))
     plt.show()
+
+
