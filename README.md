@@ -12,6 +12,10 @@ Pytorch implementation of "SmoothFool: a framework for computing smooth adversar
 
 ![](https://github.com/alldbi/SmoothFool/blob/master/samples/samples_linear.png)
 
+#### Uniform
+
+![](https://github.com/alldbi/SmoothFool/blob/master/samples/samples_uniform.png)
+
 ## Setup
 
 ### Prerequisites

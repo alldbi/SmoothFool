@@ -329,7 +329,7 @@ dp_lambda = 1.5
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch implementation of SmoothFool')
     parser.add_argument('--sigma', default=300, type=float, help='smoothing factor')
-    parser.add_argument('--type', default='linear', type=str, help='type of smoothing')
+    parser.add_argument('--type', default='uniform', type=str, help='type of smoothing')
     parser.add_argument('--smoothclip', default=True, type=bool,
                         help='clip adv samples using smoothclip or conventional clip, (not valid for uniform smoothness)')
     parser.add_argument('--net', default='resnet101', type=str,
