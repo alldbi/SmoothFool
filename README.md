@@ -36,7 +36,7 @@ python smoothfool.py \
 
 #### Linear
 
-![](https://github.com/alldbi/SmoothFool/blob/master/samples/samples_linear.png)
+![](https://github.com/alldbi/SmoothFool/blob/master/samples/sample_linear.png)
 
 #### Uniform
 
