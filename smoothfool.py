@@ -328,21 +328,16 @@ dp_lambda = 1.5
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch implementation of SmoothFool')
-    parser.add_argument('--sigma', default=300, type=float, help='smoothing factor')
+    parser.add_argument('--sigma', default=5, type=float, help='smoothing factor')
     parser.add_argument('--type', default='uniform', type=str, help='type of smoothing')
-    parser.add_argument('--smoothclip', default=True, type=bool,
-                        help='clip adv samples using smoothclip or conventional clip, (not valid for uniform smoothness)')
+    parser.add_argument('--smoothclip', default=False, type=bool,
+                        help='clip adv samples using smoothclip or conventional clip')
     parser.add_argument('--net', default='resnet101', type=str,
                         help='network architecture to perform attack on, could be vgg16 or resent101')
     parser.add_argument('--img', default='./samples/ILSVRC2012_val_00000003.JPEG', type=str,
                         help='path to the input img')
     args = parser.parse_args()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    smoothcliping = False
-    if args.type != 'uniform':
-        smoothcliping = args.smoothclip
-    # load the network
 
     if args.net == 'vgg16':
         net = models.vgg16(pretrained=True)
@@ -368,7 +363,7 @@ if __name__ == '__main__':
     x_adv, loop_i, total_clip_iters, label_nat, label_adv = smoothfool(net, im, alpha_fac=alpha_fac,
                                                                        dp_lambda=dp_lambda,
                                                                        smoothing_func=smoothing,
-                                                                       smooth_clipping=smoothcliping,
+                                                                       smooth_clipping=args.smoothclip,
                                                                        device=device)
 
     print("\nPredicted label for input sample: " + pred_cls(label_nat))
