@@ -1,11 +1,19 @@
+import torchvision.models as models
+from PIL import Image
 from torch.autograd.gradcheck import zero_gradients
 from torch.autograd import Variable
-from torch_utils import *
+from np_utils import *
+import torch
+import math
 import copy
-import os
 import torchvision.transforms as transforms
 import scipy.misc
-
+import matplotlib.pyplot as plt
+import os
+import numbers
+from torch.nn import functional as F
+import torch.nn as nn
+import argparse
 
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
@@ -18,11 +26,106 @@ t_min_b = (- mean[2]) / std[2]  # 2.640
 
 labels = open(os.path.join('synset_words.txt'), 'r').read().split('\n')
 
+# set random seed
+torch.manual_seed(263)
+np.random.seed(274)
+
 
 def pred_cls(lbl):
-   return labels[np.int(lbl)].split(',')[0]
+    return labels[np.int(lbl)].split(',')[0]
 
-def deepfool(im, net, lambda_fac=1.1, num_classes=10, overshoot=0.02, max_iter=20, device='cuda'):
+
+class Smoothing(nn.Module):
+    """
+    Apply smoothing on a tensor
+    Arguments:
+        channels (int, sequence): Number of channels of the input tensors. Output will
+            have this number of channels as well.
+        kernel_size (int, sequence): Size of the gaussian kernel.
+        sigma (float, sequence): Standard deviation of the gaussian kernel.
+        dim (int, optional): The number of dimensions of the data.
+            Default value is 2 (spatial).
+    """
+
+    def __init__(self, sig, type='gaussian'):
+
+        super(Smoothing, self).__init__()
+
+        if type == 'gaussian':
+            size_denom = 5.
+            sigma = sig * size_denom
+            kernel_size = sigma
+            mgrid = torch.arange(kernel_size, dtype=torch.float32)
+            mean = (kernel_size - 1.) / 2.
+            mgrid = mgrid - mean
+            mgrid = mgrid * size_denom
+            kernel = 1. / (sigma * math.sqrt(2. * math.pi)) * \
+                     torch.exp(-(((mgrid - 0.) / (sigma)) ** 2) * 0.5)
+
+        elif type == 'linear':
+            kernel_size = sig
+            kernel = torch.arange(kernel_size, dtype=torch.float32)
+            kernel = kernel - kernel.mean()
+            kernel = kernel.max() - kernel.abs()
+        elif type == 'uniform':
+            kernel_size = sig
+            kernel = torch.ones([int(kernel_size)])
+        else:
+            raise ValueError('Smoothing type is not defined!')
+
+        # Make sure sum of values in gaussian kernel equals 1.
+        kernel = kernel / torch.sum(kernel)
+
+        # Reshape to depthwise convolutional weight
+        kernelx = kernel.view(1, 1, int(kernel_size), 1).repeat(3, 1, 1, 1)
+        kernely = kernel.view(1, 1, 1, int(kernel_size)).repeat(3, 1, 1, 1)
+
+        self.register_buffer('weightx', kernelx)
+        self.register_buffer('weighty', kernely)
+        self.groups = 3
+
+        self.conv = F.conv2d
+        padd0 = int(kernel_size // 2)
+        evenorodd = int(1 - kernel_size % 2)
+        self.pad = torch.nn.ConstantPad2d((padd0 - evenorodd, padd0, padd0 - evenorodd, padd0), 0.)
+
+    def forward(self, input):
+        """
+        Apply smoothing filter to input.
+        Arguments:
+            input (torch.Tensor): Input to apply gaussian filter on.
+        Returns:
+            filtered (torch.Tensor): Filtered output.
+        """
+
+        input = self.pad(input)
+        input = self.conv(input, weight=self.weightx, groups=self.groups)
+        input = self.conv(input, weight=self.weighty, groups=self.groups)
+        return input
+
+
+def preprocess_channels(x, mean, std):
+    x_r = x[0:1, 0:1, :, :]
+    x_g = x[0:1, 1:2, :, :]
+    x_b = x[0:1, 2:3, :, :]
+    x_r = (x_r - mean[0]) / std[0]
+    x_g = (x_g - mean[1]) / std[1]
+    x_b = (x_b - mean[2]) / std[2]
+
+    return torch.cat((x_r, x_g, x_b), 1)
+
+
+def deprocess_channels(x, mean, std):
+    x_r = x[0:1, 0:1, :, :]
+    x_g = x[0:1, 1:2, :, :]
+    x_b = x[0:1, 2:3, :, :]
+    x_r = x_r * std[0] + mean[0]
+    x_g = x_g * std[1] + mean[1]
+    x_b = x_b * std[2] + mean[2]
+    return torch.cat((x_r, x_g, x_b), 1)
+
+
+def deepfool(im, net, lambda_fac=2., num_classes=10, overshoot=0.02, max_iter=20, device='cuda'):
     image = copy.deepcopy(im)
     input_shape = image.size()
 
@@ -69,7 +172,6 @@ def deepfool(im, net, lambda_fac=1.1, num_classes=10, overshoot=0.02, max_iter=2
 
         pert_image = pert_image + r_i
 
-
         check_fool = image + (1 + overshoot) * r_tot
         k_i = torch.argmax(net.forward(Variable(check_fool, requires_grad=True)).data).item()
 
@@ -87,107 +189,191 @@ def deepfool(im, net, lambda_fac=1.1, num_classes=10, overshoot=0.02, max_iter=2
     return grad, pert_image, k_i
 
 
-def smoothfool(net, im, n_clusters=4, max_iters=50000, plot_cluters=False, device='cuda'):
-    def clip_value(x):
-        xx = copy.deepcopy(x)
-        x_0 = xx[0:1, :, :]
-        x_1 = xx[1:2, :, :]
-        x_2 = xx[2:3, :, :]
-        x_0 = torch.clamp(x_0, t_min_r, t_max_r)
-        x_1 = torch.clamp(x_1, t_min_g, t_max_g)
-        x_2 = torch.clamp(x_2, t_min_b, t_max_b)
-        x_c = torch.cat((x_0, x_1, x_2), 0)
-        error = torch.sum(torch.abs(x_c - xx))
-        print ("clipping error [verify smoothclip] :", error.item())
-        if error.item()>0.:
-            exit('Error with smooth clipping')
-        return x_c
+def smooth_clip(x, v, smoothing, max_iters=200):
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+    epsilon = 1e-2
+    test_x = copy.deepcopy(x)
+    v_i = copy.deepcopy(v)
+    iter_i = 0
 
+    # deprocess x to be in [0, 1]
+    test_x = deprocess_channels(test_x, mean=mean, std=std)
+
+    # deprocess perturbation
+    v_i = deprocess_channels(v_i, mean=[0., 0., 0.], std=std)
+
+    n = 1.
+
+    while n > 0 and iter_i < max_iters:
+        result_img = test_x + v_i
+
+        overshoot = ((result_img - 1.) >= 0).type(torch.float32)
+        belowshoot = ((result_img - 0.) <= 0).type(torch.float32)
+
+        ov_max = (result_img - 1.).data.cpu().numpy() * 0.1
+        bl_max = (result_img - 0.).data.cpu().numpy() * 0.1 * -1.
+
+        ov_max = np.maximum(ov_max.max(), 0.01)
+        bl_max = np.maximum(bl_max.max(), 0.01)
+
+        overshoot = smoothing(overshoot)
+        belowshoot = smoothing(belowshoot)
+
+        maxx_ov = torch.max(overshoot) + 1e-12
+        maxx_bl = torch.max(belowshoot) + 1e-12
+
+        overshoot = overshoot / maxx_ov
+        belowshoot = belowshoot / maxx_bl
+
+        v_i = v_i - overshoot * ov_max + belowshoot * bl_max
+        result_img = test_x + v_i
+
+        overshoot = ((result_img - 1.) >= 0).type(torch.float32)
+        belowshoot = ((result_img - 0.) <= 0).type(torch.float32)
+
+        n_ov = overshoot.sum().item()
+        n_bl = belowshoot.sum().item()
+        n = n_ov + n_bl
+        iter_i += 1
+    v_i = preprocess_channels(v_i, mean=[0., 0., 0.], std=std)
+    return v_i, iter_i
+
+
+def clip_value(x):
+    xx = copy.deepcopy(x)
+    x_0 = xx[0:1, :, :]
+    x_1 = xx[1:2, :, :]
+    x_2 = xx[2:3, :, :]
+    x_0 = torch.clamp(x_0, t_min_r, t_max_r)
+    x_1 = torch.clamp(x_1, t_min_g, t_max_g)
+    x_2 = torch.clamp(x_2, t_min_b, t_max_b)
+    x_c = torch.cat((x_0, x_1, x_2), 0)
+    return x_c
+
+
+def compute_roughness(r, smoothing):
+    diff = r - smoothing(r)
+    omega = torch.sum(diff ** 2)
+    omega_normal = omega / torch.sum(r ** 2)
+    return omega.item(), omega_normal.item()
+
+
+def smoothfool(net, im, alpha_fac, dp_lambda, smoothing_func, max_iters=500, smooth_clipping=True, device='cuda'):
     net = net.to(device)
     im = im.to(device)
     x_i = copy.deepcopy(im).to(device)
     loop_i = 0
     f_image = net.forward(Variable(im[None, :, :, :], requires_grad=True)).data.cpu().numpy().flatten()
-    label = np.argmax(f_image)
-    print (np.max(f_image))
-    k_i = label
-
-    smoothing = GaussianSmoothing(3, sigma=15.).to(device)#was 15 for lion figure
+    label_nat = np.argmax(f_image)
+    k_i = label_nat
     labels = open(os.path.join('synset_words.txt'), 'r').read().split('\n')
-    while loop_i<max_iters and k_i == label:
-        normal, x_adv, adv_lbl = deepfool(x_i[None, :, :, :], net, 1., num_classes=20, device=device)
-        normal_smooth = smoothing(normal)
-        dot0 = torch.dot(normal.view(-1), x_adv.view(-1)-x_i.view(-1))
+    total_clip_iters = 0
+    attck_mon = []
+    while loop_i < max_iters and k_i == label_nat:
+        normal, x_adv, adv_lbl = deepfool(x_i[None, :, :, :], net, lambda_fac=dp_lambda, num_classes=10, device=device)
+        normal_smooth = smoothing_func(normal)
+        normal_smooth = normal_smooth / torch.norm(normal_smooth.view(-1))
+        dot0 = torch.dot(normal.view(-1), x_adv.view(-1) - x_i.view(-1))
         dot1 = torch.dot(normal.view(-1), normal_smooth.view(-1))
-
-
-        alpha = dot0/dot1
-        print ("alpha:", alpha)
-
-        cost = dot1/(torch.norm(normal.view(-1))*torch.norm(normal_smooth.view(-1)))
-        print ("cost:", cost.item())
-
+        alpha = (dot0 / dot1) * alpha_fac
         normal_smooth = normal_smooth * alpha
 
-        normal_smooth = smooth_clip_v2(x_i[None, :, :, :], normal_smooth, smoothing)
+        clip_iters = 0
+        if smooth_clipping:
+            normal_smooth, clip_iters = smooth_clip(x_i[None, :, :, :], normal_smooth, smoothing_func)
+            if clip_iters > 198:
+                print("clip_iters>iters_max")
+                break
+            total_clip_iters += clip_iters
+            x_i = x_i + normal_smooth[0, :, :, :]
+        else:
+            x_i = clip_value(x_i + normal_smooth[0, ...])
 
-        x_i = x_i + normal_smooth[0, :, :, :]
-
-        # verify smoothclip
-        x_i = clip_value(x_i)
         f_image = net.forward(Variable(x_i[None, :, :, :], requires_grad=True)).data.cpu().numpy().flatten()
-        label = np.argmax(f_image)
+        k_i = np.argmax(f_image)
         loop_i += 1
-        print ("step:", loop_i, "pred lbl:", pred_cls(label), "pred val:", np.max(f_image))
-        print ("------------------")
+        print("         step: %03d, predicted label: %03d, prob of pred: %.3f, n of clip iters: %03d" % (
+            loop_i, k_i, np.max(f_image), clip_iters))
+        attck_mon.append(np.max(f_image))
+
+        # track the performance of attack
+        if len(attck_mon) > 10:
+            del attck_mon[0]
+
+    return x_i, loop_i, total_clip_iters, label_nat, k_i
 
 
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
-
-    im_np = inv_tf(x_i.cpu().numpy().squeeze(), mean, std)
-    im_np = np.clip(im_np, 0., 1.)
-
-    im_orig = inv_tf(im.cpu().numpy().squeeze(), mean, std)
-
-    tensor = im_np.transpose([2, 0, 1])
-    tensor = torch.from_numpy(tensor).cuda()
-    tensor= transforms.Compose([transforms.Normalize(mean=mean, std=std)])(tensor)
-    f_image = net.forward(Variable(tensor[None, :, :, :], requires_grad=True)).data.cpu().numpy().flatten()
-    label = np.argmax(f_image)
-
-    print ("fool detail:", pred_cls(label), np.max(f_image), "<<<<<<<<<<<<<<<<<<<<<<")
-
-    diff = x_i - im
-    diff = diff.data.cpu().numpy().transpose([1, 2, 0])
+def tensor2img(t):
+    """
+    converts the pytorch tensor to img by transposing the tensor and normalizing it
+    :param t: input tensor
+    :return: numpy array with last dim be the channels and all values in range [0, 1]
+    """
+    t_np = t.detach().cpu().numpy().transpose(1, 2, 0)
+    t_np = (t_np - t_np.min()) / (t_np.max() - t_np.min())
+    return t_np
 
 
-    print ("diff norm2", np.linalg.norm(diff.reshape([-1])))
-    print ("diff mean", np.mean(np.abs(diff)))
-    print ("diff max", np.max(np.abs(diff)))
+############# EXP settings ##############################
+alpha_fac = 1.1
+dp_lambda = 1.5
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='PyTorch implementation of SmoothFool')
+    parser.add_argument('--sigma', default=20, type=float, help='smoothing factor')
+    parser.add_argument('--type', default='uniform', type=str, help='type of smoothing')
+    parser.add_argument('--smoothclip', default=True, type=bool,
+                        help='clip adv samples using smoothclip or conventional clip, (not valid for uniform smoothness)')
+    parser.add_argument('--net', default='vgg16', type=str,
+                        help='network architecture to perform attack on, could be vgg16 or resent101')
+    parser.add_argument('--img', default='./samples/ILSVRC2012_val_00000003.JPEG', type=str,
+                        help='path to the input img')
+    args = parser.parse_args()
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+    smoothcliping = False
+    if args.type != 'uniform':
+        smoothcliping = args.smoothclip
 
+    # load the network
 
-    diff = normalize(diff, p=True)
+    if args.net == 'vgg16':
+        net = models.vgg16(pretrained=True)
+    elif args.net == 'resnet101':
+        net = models.resnet101(pretrained=True)
+    else:
+        raise ValueError('Network architecture is not defined!')
 
-    plt.subplot(131)
-    plt.imshow(im_orig)
-    plt.subplot(132)
-    plt.imshow(im_np)
-    plt.subplot(133)
-    plt.imshow(diff)
+    # Switch to evaluation mode
+    net.eval()
 
+    smoothing = Smoothing(sig=args.sigma, type=args.type).to(device)
+
+    # read the input image
+    im_orig = Image.open(args.img)
+
+    im = transforms.Compose([
+        transforms.Scale(224),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)])(im_orig)
+    im = im.to(device)
+
+    x_adv, loop_i, total_clip_iters, label_nat, label_adv = smoothfool(net, im, alpha_fac=alpha_fac,
+                                                                       dp_lambda=dp_lambda,
+                                                                       smoothing_func=smoothing,
+                                                                       smooth_clipping=smoothcliping,
+                                                                       device=device)
+
+    # visualize the results
+
+    plt.subplot(1, 3, 1)
+    plt.title('Input sample')
+    plt.imshow(tensor2img(im))
+    plt.subplot(1, 3, 2)
+    plt.title('Adv sample')
+    plt.imshow(tensor2img(x_adv))
+    plt.subplot(1, 3, 3)
+    plt.title('Adv perturbation')
+    plt.imshow(tensor2img(x_adv - im))
     plt.show()
-
-    scipy.misc.imsave('orig.png', im_orig)
-    scipy.misc.imsave('adv.png', im_np)
-    scipy.misc.imsave('p.png', diff)
-
-    exit()
-
-
-
-
-    return x_i, label, k_i
-
