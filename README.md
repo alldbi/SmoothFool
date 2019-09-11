@@ -2,20 +2,6 @@
 
 Pytorch implementation of "SmoothFool: a framework for computing smooth adversarial perturbations".
 
-### Sample results
-
-#### Gaussian
-
-![](https://github.com/alldbi/SmoothFool/blob/master/samples/sample_gaussian.png)
-
-#### Linear
-
-![](https://github.com/alldbi/SmoothFool/blob/master/samples/samples_linear.png)
-
-#### Uniform
-
-![](https://github.com/alldbi/SmoothFool/blob/master/samples/samples_uniform.png)
-
 ## Setup
 
 ### Prerequisites
@@ -58,15 +44,21 @@ python main.py \
   --epsilon "coefficient for a scaling the gradient sign for each single iteration of the attack"
 ```
 
-## Citation
-If you use this code for your research, please cite the paper: <a href="https://arxiv.org/abs/1809.08999">Fast Geometrically-Perturbed Adversarial Faces</a>:
 
-@article{dabouei2018fast,
-  title={Fast Geometrically-Perturbed Adversarial Faces},
-  author={Dabouei, Ali and Soleymani, Sobhan and Dawson, Jeremy and Nasrabadi, Nasser M},
-  journal={arXiv preprint arXiv:1809.08999},
-  year={2018}
-}
+### Sample results
+
+#### Gaussian
+
+![](https://github.com/alldbi/SmoothFool/blob/master/samples/sample_gaussian.png)
+
+#### Linear
+
+![](https://github.com/alldbi/SmoothFool/blob/master/samples/samples_linear.png)
+
+#### Uniform
+
+![](https://github.com/alldbi/SmoothFool/blob/master/samples/samples_uniform.png)
+
 
 ## References
 - [FaceNet](https://github.com/davidsandberg/facenet)
