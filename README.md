@@ -5,16 +5,11 @@ Pytorch implementation of "SmoothFool: a framework for computing smooth adversar
 ## Setup
 
 ### Prerequisites
-- Tensorflow 1.4.1
-- Python 2.7
-- CV2
-- Dlib 
+- Pytorch > 0.4
+- Python 3.5
+- PIL 
 - Matplotlib
-
-### Pretrained models
-- [Download](https://drive.google.com/file/d/1R77HmFADxe87GmoLwzfgMu_HY0IhcyBz/view) pretrained "Inception ResNet v1" model, trained on the "CASIA-WebFace" dataset provided by [FaceNet](https://github.com/davidsandberg/facenet).
-
-- [Download](http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2) the file and extract it to get the "shape_predictor_68_face_landmarks.dat" pretrained model for [DLib](http://dlib.net/) landmark detector.
+- Numpy
 
 ### Getting Started
 
