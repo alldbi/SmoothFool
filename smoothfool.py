@@ -62,14 +62,21 @@ class Smoothing(nn.Module):
             kernel = 1. / (sigma * math.sqrt(2. * math.pi)) * \
                      torch.exp(-(((mgrid - 0.) / (sigma)) ** 2) * 0.5)
 
+            print("Gaussian smoothing")
+
         elif type == 'linear':
             kernel_size = sig
             kernel = torch.arange(kernel_size, dtype=torch.float32)
             kernel = kernel - kernel.mean()
             kernel = kernel.max() - kernel.abs()
+
+            print("Linear smoothing")
+
         elif type == 'uniform':
             kernel_size = sig
             kernel = torch.ones([int(kernel_size)])
+
+            print("Uniform smoothing")
         else:
             raise ValueError('Smoothing type is not defined!')
 
@@ -321,8 +328,8 @@ dp_lambda = 1.5
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch implementation of SmoothFool')
-    parser.add_argument('--sigma', default=100, type=float, help='smoothing factor')
-    parser.add_argument('--type', default='gaussian', type=str, help='type of smoothing')
+    parser.add_argument('--sigma', default=300, type=float, help='smoothing factor')
+    parser.add_argument('--type', default='linear', type=str, help='type of smoothing')
     parser.add_argument('--smoothclip', default=True, type=bool,
                         help='clip adv samples using smoothclip or conventional clip, (not valid for uniform smoothness)')
     parser.add_argument('--net', default='resnet101', type=str,
@@ -335,7 +342,6 @@ if __name__ == '__main__':
     smoothcliping = False
     if args.type != 'uniform':
         smoothcliping = args.smoothclip
-
     # load the network
 
     if args.net == 'vgg16':
