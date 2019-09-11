@@ -6,7 +6,7 @@ Pytorch implementation of "SmoothFool: a framework for computing smooth adversar
 
 #### Gaussian
 
-![](https://github.com/alldbi/FLM/blob/master/sample_results/resultss.png)
+![](https://github.com/alldbi/SmoothFool/blob/master/samples/sample_gaussian.png)
 
 ## Setup
 
