@@ -2,7 +2,7 @@ import torchvision.models as models
 from PIL import Image
 from torch.autograd.gradcheck import zero_gradients
 from torch.autograd import Variable
-from np_utils import *
+import numpy as np
 import torch
 import math
 import copy
@@ -325,7 +325,7 @@ if __name__ == '__main__':
     parser.add_argument('--type', default='uniform', type=str, help='type of smoothing')
     parser.add_argument('--smoothclip', default=True, type=bool,
                         help='clip adv samples using smoothclip or conventional clip, (not valid for uniform smoothness)')
-    parser.add_argument('--net', default='vgg16', type=str,
+    parser.add_argument('--net', default='resnet101', type=str,
                         help='network architecture to perform attack on, could be vgg16 or resent101')
     parser.add_argument('--img', default='./samples/ILSVRC2012_val_00000003.JPEG', type=str,
                         help='path to the input img')
@@ -364,6 +364,9 @@ if __name__ == '__main__':
                                                                        smoothing_func=smoothing,
                                                                        smooth_clipping=smoothcliping,
                                                                        device=device)
+
+    print("\nPredicted label for input sample: " + pred_cls(label_nat))
+    print("Predicted label for adv sample: " + pred_cls(label_adv))
 
     # visualize the results
 
