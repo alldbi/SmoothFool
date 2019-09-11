@@ -3,6 +3,9 @@
 Pytorch implementation of "SmoothFool: a framework for computing smooth adversarial perturbations".
 
 ### Sample results
+
+#### Gaussian
+
 ![](https://github.com/alldbi/FLM/blob/master/sample_results/resultss.png)
 
 ## Setup
