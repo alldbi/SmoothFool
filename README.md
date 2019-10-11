@@ -42,6 +42,8 @@ python smoothfool.py \
 
 ![](https://github.com/alldbi/SmoothFool/blob/master/samples/samples_uniform.png)
 
+## Citation
+If you use the code or methodology for your research, please cite the paper: <a href="https://arxiv.org/abs/1910.03624">SmoothFool: An Efficient Framework for Computing Smooth Adversarial Perturbations</a>
 
 ## References
 - [DeepFool](https://github.com/LTS4/DeepFool)
