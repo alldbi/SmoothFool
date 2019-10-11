@@ -1,6 +1,6 @@
 # SmoothFool
 
-Pytorch implementation of "SmoothFool: a framework for computing smooth adversarial perturbations".
+Pytorch implementation of <a href="https://arxiv.org/abs/1910.03624">SmoothFool: An Efficient Framework for Computing Smooth Adversarial Perturbations</a>.
 
 ## Setup
 
