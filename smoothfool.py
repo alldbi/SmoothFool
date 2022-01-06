@@ -36,7 +36,101 @@ def pred_cls(lbl):
 
 
 ########
+class Smoothing(nn.Module):
+    """
+    Apply smoothing on a tensor
+    Arguments:
+        channels (int, sequence): Number of channels of the input tensors. Output will
+            have this number of channels as well.
+        kernel_size (int, sequence): Size of the gaussian kernel.
+        sigma (float, sequence): Standard deviation of the gaussian kernel.
+        dim (int, optional): The number of dimensions of the data.
+            Default value is 2 (spatial).
+    """
 
+    def __init__(self, sig, type='gaussian'):
+
+        super(Smoothing, self).__init__()
+
+        if type == 'gaussian':
+            size_denom = 5.
+            sigma = sig * size_denom
+            kernel_size = sigma
+            mgrid = torch.arange(kernel_size, dtype=torch.float32)
+            mean = (kernel_size - 1.) / 2.
+            mgrid = mgrid - mean
+            mgrid = mgrid * size_denom
+            kernel = 1. / (sigma * math.sqrt(2. * math.pi)) * \
+                     torch.exp(-(((mgrid - 0.) / (sigma)) ** 2) * 0.5)
+
+            print("Gaussian smoothing")
+
+        elif type == 'linear':
+            kernel_size = sig
+            kernel = torch.arange(kernel_size, dtype=torch.float32)
+            kernel = kernel - kernel.mean()
+            kernel = kernel.max() - kernel.abs()
+
+            print("Linear smoothing")
+
+        elif type == 'uniform':
+            kernel_size = sig
+            kernel = torch.ones([int(kernel_size)])
+
+            print("Uniform smoothing")
+        else:
+            raise ValueError('Smoothing type is not defined!')
+
+        # Make sure sum of values in gaussian kernel equals 1.
+        kernel = kernel / torch.sum(kernel)
+
+        # Reshape to depthwise convolutional weight
+        kernelx = kernel.view(1, 1, int(kernel_size), 1).repeat(3, 1, 1, 1)
+        kernely = kernel.view(1, 1, 1, int(kernel_size)).repeat(3, 1, 1, 1)
+
+        self.register_buffer('weightx', kernelx)
+        self.register_buffer('weighty', kernely)
+        self.groups = 3
+
+        self.conv = F.conv2d
+        padd0 = int(kernel_size // 2)
+        evenorodd = int(1 - kernel_size % 2)
+        self.pad = torch.nn.ConstantPad2d((padd0 - evenorodd, padd0, padd0 - evenorodd, padd0), 0.)
+
+    def forward(self, input):
+        """
+        Apply smoothing filter to input.
+        Arguments:
+            input (torch.Tensor): Input to apply gaussian filter on.
+        Returns:
+            filtered (torch.Tensor): Filtered output.
+        """
+
+        input = self.pad(input)
+        input = self.conv(input, weight=self.weightx, groups=self.groups)
+        input = self.conv(input, weight=self.weighty, groups=self.groups)
+        return input
+
+
+def preprocess_channels(x, mean, std):
+    x_r = x[0:1, 0:1, :, :]
+    x_g = x[0:1, 1:2, :, :]
+    x_b = x[0:1, 2:3, :, :]
+    x_r = (x_r - mean[0]) / std[0]
+    x_g = (x_g - mean[1]) / std[1]
+    x_b = (x_b - mean[2]) / std[2]
+
+    return torch.cat((x_r, x_g, x_b), 1)
+
+
+def deprocess_channels(x, mean, std):
+    x_r = x[0:1, 0:1, :, :]
+    x_g = x[0:1, 1:2, :, :]
+    x_b = x[0:1, 2:3, :, :]
+    x_r = x_r * std[0] + mean[0]
+    x_g = x_g * std[1] + mean[1]
+    x_b = x_b * std[2] + mean[2]
+    return torch.cat((x_r, x_g, x_b), 1)
 
 #######
 
